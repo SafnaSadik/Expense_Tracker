@@ -1,0 +1,141 @@
+max-width: 400px
+
+max-width: 400px
+
+z-index: 1050">
+
+""/* General Styles */
+
+/* General Styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+/* Login & Register Pages */
+.login-container {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Dashboard Layout */
+.dashboard {
+    min-height: 100vh;
+    background-color: #f8f9fa;
+}
+
+header {
+    background-color: #2c3e50;
+    color: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Summary Cards */
+.summary-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.summary-card h3 {
+    color: #2c3e50;
+}
+
+.amount {
+    font-size: 24px;
+    font-weight: bold;
+    color: #3498db;
+}
+
+/* Forms */
+.form-control {
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* Budget Overview */
+.budget-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+/* Progress Bar */
+.progress {
+    height: 8px;
+}
+
+.progress-bar {
+    background-color: #3498db;
+}
+
+/* Table */
+.table {
+    width: 100%;
+    margin-top: 15px;
+}
+
+.table thead {
+    background-color: #f8f9fa;
+}
+
+/* Buttons */
+.btn-primary:hover {
+    background-color: #2980b9;
+}
+
+.btn-logout {
+    background-color: #e74c3c;
+}
+
+.btn-logout:hover {
+    background-color: #c0392b;
+}
+
+/* Alert Messages */
+.alert {
+    padding: 10px;
+    border-radius: 4px;
+}
+
+/* Filter Section */
+.filter-section form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+/* Export Section */
+.export-section {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 10px;
+    }
+
+    header {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+
+    .user-info {
+        flex-direction: column;
+    }
+}
