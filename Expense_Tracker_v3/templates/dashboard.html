@@ -1,0 +1,727 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Expense Tracker{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <header class="d-flex justify-content-between align-items-center p-4 bg-primary text-white rounded shadow-lg border-0">
+        <h1 class="h3">Expense Tracker</h1>
+        <div class="user-info">
+            <span>Welcome, {{ session.username }}!</span>
+            <a href="{{ url_for('logout') }}" class="btn btn-light ms-3">Logout</a>
+        </div>
+    </header>
+
+<!-- Summary Cards Row -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-lg border-0 rounded-lg mt-4 p-4">
+            <div class="card-body text-center">
+                <h5 class="card-title text-muted mb-3">Total Expenses</h5>
+                <p class="fs-4 text-danger mb-0">₹{{ "%.2f"|format(total_expenses) }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-lg border-0 rounded-lg mt-4 p-4">
+            <div class="card-body text-center">
+                <h5 class="card-title text-muted mb-3">Monthly Budget</h5>
+                <p class="fs-4 text-primary mb-0">₹{{ "%.2f"|format(monthly_budget) }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-lg border-0 rounded-lg mt-4 p-4">
+            <div class="card-body text-center">
+                <h5 class="card-title text-muted mb-3">Remaining Budget</h5>
+                <p class="fs-4 mb-0 {% if remaining_budget < 0 %}text-danger{% else %}text-success{% endif %}">
+                    ₹{{ "%.2f"|format(remaining_budget) }}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Budget Management Section -->
+    <div class="card shadow-lg border-0 rounded-lg mt-4 p-4">
+        <div class="card-header bg-primary text-white rounded-top px-4 py-3 m-0">
+            <h3 class="text-start mb-0">Budget Management</h3>
+        </div>
+        <div class="card-body p-4">
+            <form id="budgetForm" class="needs-validation" novalidate>
+                <div class="row align-items-end">
+                    <div class="col-md-8">
+                        <div class="form-floating">
+                            <input type="number"
+                                   name="amount"
+                                   id="budgetAmount"
+                                   class="form-control"
+                                   step="0.01"
+                                   min="0"
+                                   placeholder="Enter amount"
+                                   required>
+                            <label for="budgetAmount">Monthly Budget (₹)*</label>
+                            <div class="invalid-feedback">
+                                Please enter a valid budget amount
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">Set Budget</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+<!-- Budget Overview Section -->
+    <div class="card shadow-lg border-0 rounded-lg mt-4 p-4">
+        <div class="card-header bg-primary text-white rounded-top px-4 py-3 m-0">
+            <h3 class="text-start mb-0">Budget Overview</h3>
+        </div>
+        <div class="card-body p-4">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Monthly Budget</th>
+                            <th>Date Added</th>
+                            <th class="text-start">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="budgetTableBody">
+                        <!-- Budget data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+<!-- Update Budget Modal -->
+<div class="modal fade" id="updateBudgetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Monthly Budget</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="updateBudgetId">
+                <div class="mb-3">
+                    <label class="form-label">Budget Amount (₹)</label>
+                    <input type="number" id="updateBudgetAmount" class="form-control" step="0.01" min="0" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="handleBudgetUpdate()">Update Budget</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Container -->
+<div id="alertContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 1050">
+    <!-- Alerts will be dynamically inserted here -->
+</div>
+
+        <!-- Add Expense Form -->
+    <div class="card shadow-lg border-0 rounded-lg mt-4 p-4">
+      <div class="card-header bg-primary text-white rounded-top px-4 py-3 m-0">
+        <h3 class="text-start mb-0">Add New Expense</h3>
+      </div>
+        <div class="card-body p-4">
+            <form id="expense-form" onsubmit="addExpense(event)">
+                <div class="row">
+                    <!-- Expense Name -->
+                    <div class="col-md-6 mb-3">
+                        <div class="form-floating">
+                            <input type="text" class="form-control" id="expense-name" name="name" placeholder="Enter expense name" required>
+                            <label for="expense-name">Expense Name*</label>
+                        </div>
+                    </div>
+                    
+                    <!-- Amount -->
+                    <div class="col-md-6 mb-3">
+                        <div class="form-floating">
+                            <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0.01" placeholder="Enter amount" required>
+                            <label for="amount">Amount*</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Category -->
+                    <div class="col-md-6 mb-3">
+                        <div class="form-floating">
+                            <select class="form-select" id="category" name="category" required>
+                                <option value="" disabled selected>Select a category</option>
+                                {% for category in categories %}
+                                    <option value="{{ category }}">{{ category }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="category">Category*</label>
+                        </div>
+                    </div>
+
+                    <!-- Date -->
+                    <div class="col-md-6 mb-3">
+                        <div class="form-floating">
+                            <input type="date" class="form-control" id="date" name="date" required>
+                            <label for="date">Date*</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="mb-3">
+                    <div class="form-floating">
+                        <textarea class="form-control" id="description" name="description" style="height: 100px" placeholder="Enter description"></textarea>
+                        <label for="description">Description</label>
+                    </div>
+                </div>
+
+                <!-- Recurring Expense -->
+                <div class="form-check mb-3">
+                    <input type="checkbox" class="form-check-input" id="recurring" name="recurring">
+                    <label class="form-check-label" for="recurring">
+                        Recurring Expense
+                    </label>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">Add Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+        <!-- Expense Chart -->
+        <div class="card shadow-lg border-0 rounded-lg mt-4 p-4">
+            <h2>Expense Distribution</h2>
+            <canvas id="expenseChart"></canvas>
+        </div>
+
+<!-- Transaction History Section -->
+    <div class="card shadow-lg border-0 rounded-lg mt-4 p-4">
+        <div class="card-header bg-primary text-white rounded-top px-4 py-3 m-0">
+            <h3 class="text-start mb-0">Transaction History</h3>
+        </div>
+        <div class="card-body p-4">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-primary">
+                        <tr>
+                            <th>Date</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for expense in expenses %}
+                        <tr>
+                            <td>{{ expense.date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ expense.name }}</td>
+                            <td>{{ expense.category }}</td>
+                            <td>₹{{ "%.2f"|format(expense.amount) }}</td>
+                            <td>{{ expense.description }}</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm me-2">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                                <button class="btn btn-danger btn-sm">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+        <!-- Edit Expense Modal -->
+        <div class="modal fade" id="editExpenseModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Expense</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="edit-expense-form">
+                            <input type="hidden" id="edit-expense-id">
+                            <div class="form-group">
+                                <label for="edit-expense-name">Expense Name*</label>
+                                <input type="text" id="edit-expense-name" name="name" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-amount">Amount*</label>
+                                <input type="number" id="edit-amount" name="amount" class="form-control" step="0.01" min="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-category">Category*</label>
+                                <select id="edit-category" name="category" class="form-control" required>
+                                    {% for category in categories %}
+                                        <option value="{{ category }}">{{ category }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-date">Date*</label>
+                                <input type="date" id="edit-date" name="date" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-description">Description</label>
+                                <textarea id="edit-description" name="description" class="form-control"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="updateExpense()">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Options -->
+        <div class="text-center mt-4">
+            <button onclick="exportData('csv')" class="btn btn-primary">Export CSV</button>
+            <button onclick="exportData('pdf')" class="btn btn-primary">Export PDF</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Initialize date pickers
+    flatpickr('input[type="date"]', {
+        dateFormat: "Y-m-d"
+    });
+
+    // Toggle recurring options
+    document.getElementById('recurring').addEventListener('change', function() {
+        document.getElementById('recurringOptions').style.display =
+            this.checked ? 'block' : 'none';
+    });
+
+const ctx = document.getElementById('expenseChart').getContext('2d');
+new Chart(ctx, {
+    type: 'pie',
+    data: {
+        labels: {{ categories|tojson }},
+        datasets: [{
+            data: {{ category_totals|tojson }},
+            backgroundColor: {{ category_colors|tojson }},
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: {
+                    // Show all labels even if value is 0
+                    filter: function(legendItem, data) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+
+<script>
+
+// Form submission handlers
+document.getElementById('expenseForm')?.addEventListener('submit', addExpense);
+document.getElementById('budgetForm')?.addEventListener('submit', handleBudgetSubmit);
+document.getElementById('filterForm')?.addEventListener('submit', handleFilterSubmit);
+
+// Export functions
+function exportData(format) {
+    window.location.href = `/export_data?format=${format}`;
+}
+
+// ============ EXPENSE OPERATIONS ============
+async function addExpense(event) {
+    event.preventDefault();
+
+    const formData = {
+        name: document.getElementById('expense-name').value,
+        amount: document.getElementById('amount').value,
+        category: document.getElementById('category').value,
+        date: document.getElementById('date').value,
+        description: document.getElementById('description')?.value || '',
+        recurring: document.getElementById('recurring')?.checked || false
+    };
+
+    if (!formData.name || !formData.amount || !formData.category || !formData.date) {
+        showAlert('Please fill in all required fields', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/expenses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            showAlert(data.error, 'danger');
+        } else {
+            showAlert('Expense added successfully!', 'success');
+            window.location.reload();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error adding expense. Please try again.', 'danger');
+    }
+}
+
+async function editExpense(id) {
+    try {
+        const response = await fetch(`/api/expenses/${id}`);
+        const expense = await response.json();
+
+        // Populate the edit form
+        document.getElementById('edit-expense-id').value = expense._id;
+        document.getElementById('edit-expense-name').value = expense.name;
+        document.getElementById('edit-amount').value = expense.amount;
+        document.getElementById('edit-category').value = expense.category;
+        document.getElementById('edit-date').value = expense.date.split('T')[0];
+        document.getElementById('edit-description').value = expense.description || '';
+
+        new bootstrap.Modal(document.getElementById('editExpenseModal')).show();
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error loading expense details', 'danger');
+    }
+}
+
+async function updateExpense() {
+    const formData = {
+        id: document.getElementById('edit-expense-id').value,
+        name: document.getElementById('edit-expense-name').value,
+        amount: document.getElementById('edit-amount').value,
+        category: document.getElementById('edit-category').value,
+        date: document.getElementById('edit-date').value,
+        description: document.getElementById('edit-description').value
+    };
+
+    try {
+        const response = await fetch('/api/expenses', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            showAlert('Expense updated successfully', 'success');
+            window.location.reload();
+        } else {
+            showAlert('Error updating expense', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error updating expense', 'danger');
+    }
+}
+
+async function deleteExpense(id) {
+    if (!confirm('Are you sure you want to delete this expense?')) return;
+
+    try {
+        const response = await fetch('/api/expenses', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+
+        if (response.ok) {
+            showAlert('Expense deleted successfully', 'success');
+            window.location.reload();
+        } else {
+            showAlert('Error deleting expense', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error deleting expense', 'danger');
+    }
+}
+
+// ============ BUDGET OPERATIONS ============
+
+document.addEventListener('DOMContentLoaded', initializeBudget);
+
+// Initialize the budget when page loads
+function initializeBudget() {
+    fetchAndUpdateBudget();
+}
+
+// Show alert messages
+function showAlert(message, type = 'success') {
+    const alertContainer = document.getElementById('alertContainer');
+    if (!alertContainer) {
+        console.error('Alert container not found');
+        return;
+    }
+
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.role = 'alert';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+
+    alertContainer.appendChild(alertDiv);
+
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+        alertDiv.classList.remove('show');
+        setTimeout(() => alertDiv.remove(), 150);
+    }, 3000);
+}
+
+// Centralized function to fetch and update budget displays
+async function fetchAndUpdateBudget() {
+    try {
+        const response = await fetch('/api/budget');
+        const data = await response.json();
+        console.log('Fetched Budget:', data);
+
+        if (data.error) {
+            console.error('Error fetching budget:', data.error);
+            return;
+        }
+
+        const monthlyBudget = data.find(b => b.category === 'monthly');
+        updateBudgetDisplays(monthlyBudget);
+    } catch (error) {
+        console.error('Error fetching budget:', error);
+    }
+}
+
+// Update both the table and summary cards
+function updateBudgetDisplays(monthlyBudget) {
+    // Get total expenses from the UI
+    const totalExpensesElement = document.querySelector('.card:nth-child(1) .fs-4');
+    const totalExpensesStr = totalExpensesElement?.textContent || '₹0.00';
+    const totalExpenses = parseFloat(totalExpensesStr.replace('₹', '')) || 0;
+
+    // Update both displays
+    displayBudgetInTable(monthlyBudget);
+    updateSummaryCards(monthlyBudget, totalExpenses);
+}
+
+async function handleBudgetSubmit(e) {
+    e.preventDefault();
+    console.log('Form submitted');
+
+    const amount = parseFloat(document.getElementById('budgetAmount').value);
+    console.log('Amount:', amount);
+
+    if (!amount || isNaN(amount)) {
+        showAlert('Please enter a valid amount', 'warning');
+        return;
+    }
+
+    const formData = {
+        amount: amount,
+        category: 'monthly'
+    };
+
+    try {
+        const response = await fetch('/api/budget', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+        console.log('API response:', data);
+
+        if (data.error) {
+            showAlert('Error setting budget', 'danger');
+            return;
+        }
+
+        document.getElementById('budgetAmount').value = '';
+        showAlert('Budget set successfully');
+        window.location.reload();
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error setting budget', 'danger');
+    }
+}
+
+async function handleBudgetUpdate() {
+    const budgetId = document.getElementById('updateBudgetId').value;
+    const amount = parseFloat(document.getElementById('updateBudgetAmount').value);
+
+    if (!amount || isNaN(amount)) {
+        showAlert('Please enter a valid amount', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/budget', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: budgetId,
+                category: 'monthly',
+                amount
+            })
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            showAlert(data.error || 'Error updating budget', 'danger');
+            return;
+        }
+
+        const modalElement = document.getElementById('updateBudgetModal');
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        modal.hide();
+
+        showAlert('Budget updated successfully');
+        window.location.reload();
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error updating budget', 'danger');
+    }
+}
+
+async function deleteBudget(budgetId) {
+    if (!confirm('Are you sure you want to delete this budget?')) return;
+
+    try {
+        const response = await fetch('/api/budget', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: budgetId })
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            showAlert(data.error || 'Error deleting budget', 'danger');
+            return;
+        }
+
+        showAlert('Budget deleted successfully');
+        window.location.reload();
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error deleting budget', 'danger');
+    }
+}
+
+function displayBudgetInTable(budget) {
+    console.log('Displaying budget in table:', budget);
+
+    const tableBody = document.getElementById('budgetTableBody');
+    if (!tableBody) {
+        console.error('Table body not found!');
+        return;
+    }
+
+    if (!budget || !budget.amount) {
+        console.log('No budget data available');
+        tableBody.innerHTML = '<tr><td colspan="3" class="text-center">No budget set</td></tr>';
+        return;
+    }
+
+    const formattedDate = budget.created_at
+        ? formatDate(budget.created_at)
+        : formatDate(new Date().toISOString());
+
+    const rowHTML = `
+        <tr>
+            <td>₹${budget.amount.toFixed(2)}</td>
+            <td>${formattedDate}</td>
+            <td class="text-start">
+                <button class="btn btn-sm btn-primary me-2" onclick="showUpdateModal('${budget._id}', ${budget.amount})">
+                    Update
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteBudget('${budget._id}')">
+                    Delete
+                </button>
+            </td>
+        </tr>
+    `;
+
+    tableBody.innerHTML = rowHTML;
+}
+
+// Utility functions remain the same
+function formatDate(isoString) {
+    try {
+        const datePart = isoString.split('T')[0];
+        const [year, month, day] = datePart.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString('en-IN', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    } catch (error) {
+        console.error('Date error:', error);
+        return new Date().toLocaleDateString('en-IN', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+}
+
+function showUpdateModal(budgetId, currentAmount) {
+    document.getElementById('updateBudgetId').value = budgetId;
+    document.getElementById('updateBudgetAmount').value = currentAmount;
+    const updateModal = new bootstrap.Modal(document.getElementById('updateBudgetModal'));
+    updateModal.show();
+}
+
+function updateSummaryCards(budget, totalExpenses) {
+    const monthlyBudgetElement = document.querySelector('.card:nth-child(2) .fs-4');
+    const remainingBudgetElement = document.querySelector('.card:nth-child(3) .fs-4');
+
+    if (budget && budget.amount) {
+        monthlyBudgetElement.textContent = `₹${budget.amount.toFixed(2)}`;
+        const remaining = budget.amount - totalExpenses;
+        remainingBudgetElement.textContent = `₹${remaining.toFixed(2)}`;
+
+        remainingBudgetElement.classList.remove('text-success', 'text-primary', 'text-danger');
+        remainingBudgetElement.classList.add(remaining < 0 ? 'text-danger' : 'text-success');
+    } else {
+        monthlyBudgetElement.textContent = '₹0.00';
+        remainingBudgetElement.textContent = `₹${(-totalExpenses).toFixed(2)}`;
+        remainingBudgetElement.classList.remove('text-success', 'text-primary');
+        remainingBudgetElement.classList.add('text-danger');
+    }
+}
+async function handleFilterSubmit(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const queryParams = new URLSearchParams(formData);
+    window.location.href = `/dashboard?${queryParams.toString()}`;
+}
+</script>
+{% endblock %}
